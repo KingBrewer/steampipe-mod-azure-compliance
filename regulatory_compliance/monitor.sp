@@ -918,8 +918,8 @@ query "monitor_logs_storage_container_not_public_accessible" {
       end as status,
       case
         when public_access != 'None'
-          then account_name || ' container insights-operational-logs storing activity logs publicly accessible.'
-        else account_name || ' container insights-operational-logs storing activity logs not publicly accessible.'
+          then account_name || ' container ' || name || ' storing activity logs is publicly accessible.'
+        else account_name || ' container ' || name || ' storing activity logs is not publicly accessible.'
       end as reason
       ${replace(local.common_dimensions_global_qualifier_sql, "__QUALIFIER__", "sc.")}
       ${replace(local.common_dimensions_qualifier_subscription_sql, "__QUALIFIER__", "sub.")}
@@ -927,7 +927,7 @@ query "monitor_logs_storage_container_not_public_accessible" {
       azure_storage_container sc,
       azure_subscription sub
     where
-      name = 'insights-operational-logs'
+      name in ('insights-operational-logs', 'insights-activity-logs')
       and sub.subscription_id = sc.subscription_id;
   EOQ
 }
