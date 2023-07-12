@@ -891,8 +891,8 @@ query "monitor_logs_storage_container_encryptes_with_byok" {
       end as status,
       case
         when a.encryption_key_source = 'Microsoft.Keyvault'
-          then a.name || ' container insights-operational-logs encrypted with BYOK.'
-        else a.name || ' container insights-operational-logs not encrypted with BYOK.'
+          then a.name || ' container ' || c.name || ' encrypted with BYOK.'
+        else a.name || ' container ' || c.name || ' not encrypted with BYOK.'
       end as reason
       ${local.tag_dimensions_sql}
       ${replace(local.common_dimensions_qualifier_sql, "__QUALIFIER__", "a.")}
@@ -902,7 +902,7 @@ query "monitor_logs_storage_container_encryptes_with_byok" {
       azure_storage_account a,
       azure_subscription sub
     where
-      c.name = 'insights-operational-logs'
+      c.name in ('insights-operational-logs', 'insights-activity-logs')
       and c.account_name = a.name
       and sub.subscription_id = a.subscription_id;
   EOQ
