@@ -408,20 +408,20 @@ query "ad_authorization_policy_guest_user_access_restricted" {
         azure_tenant
     )
     select
-      id as resource,
+      p.tenant_id as resource,
       case
         when guest_user_role_id = '2af84b1e-32c8-42b7-82bc-daa82404023b' then 'ok'
         else 'alarm'
       end as status,
       case
         when guest_user_role_id = '2af84b1e-32c8-42b7-82bc-daa82404023b' then  t.display_name || ' guest user access is restricted to properties and memberships of their own directory objects.'
-        else t.display_name || ' guest user access is not at most restrictive; guest_user_role_id=' || coalesce(guest_user_role_id, '<null>') || '.'
+        else coalesce(t.display_name, p.tenant_id) || ' guest user access is not at most restrictive; guest_user_role_id=' || coalesce(guest_user_role_id, '<null>') || '.'
       end as reason,
       t.tenant_id
       ${replace(local.common_dimensions_subscription_id_qualifier_sql, "__QUALIFIER__", "t.")}
     from
       distinct_tenant as t,
-      azuread_authorization_policy;
+      azuread_authorization_policy p;
   EOQ
 }
 
@@ -437,26 +437,26 @@ query "ad_authorization_policy_guest_invite_restricted" {
         azure_tenant
     )
     select
-      id as resource,
+      p.tenant_id as resource,
       case
         when allow_invites_from in ('adminsAndGuestInviters', 'none') then 'ok'
         else 'alarm'
       end as status,
       case
         when allow_invites_from = 'none'
-          then t.display_name || ' guest invitations disabled (no one).'
+          then coalesce(t.display_name, p.tenant_id) || ' guest invitations disabled (no one).'
         when allow_invites_from = 'adminsAndGuestInviters'
-          then t.display_name || ' guest invitations restricted to specific admin roles.'
+          then coalesce(t.display_name, p.tenant_id) || ' guest invitations restricted to specific admin roles.'
         else
-          t.display_name || ' guest invitations are too permissive: allow_invites_from=' || coalesce(allow_invites_from, '<null>') || '.'
+          coalesce(t.display_name, p.tenant_id) || ' guest invitations are too permissive: allow_invites_from=' || coalesce(allow_invites_from, '<null>') || '.'
       end as reason,
       t.tenant_id
       ${replace(local.common_dimensions_subscription_id_qualifier_sql, "__QUALIFIER__", "t.")}
     from
       distinct_tenant as t,
-      azuread_authorization_policy;
+      azuread_authorization_policy p;
   EOQ
-}
+ }
 
 query "ad_require_mfa_for_device_join" {
   sql = <<-EOQ
