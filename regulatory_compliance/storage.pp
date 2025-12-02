@@ -732,9 +732,9 @@ query "storage_account_blob_service_logging_enabled" {
         when ls.read_enabled and ls.write_enabled and ls.delete_enabled then sa.name || ' blob service logging enabled for read, write, delete requests.'
         else sa.name || ' blob service logging missing for: ' ||
           trim(both ', ' from
-            case when not ls.read_enabled then 'read, ' else '' end ||
-            case when not ls.write_enabled then 'write, ' else '' end ||
-            case when not ls.delete_enabled then 'delete, ' else '' end
+            case when not coalesce(ls.read_enabled, false) then 'read, ' else '' end ||
+            case when not coalesce(ls.write_enabled, false) then 'write, ' else '' end ||
+            case when not coalesce(ls.delete_enabled, false) then 'delete, ' else '' end
           ) || ' requests.'
       end as reason
       ${replace(local.tag_dimensions_qualifier_sql, "__QUALIFIER__", "sa.")}
@@ -786,9 +786,9 @@ query "storage_account_table_service_logging_enabled" {
         when ls.read_enabled and ls.write_enabled and ls.delete_enabled then sa.name || ' table service logging enabled for read, write, delete requests.'
         else sa.name || ' table service logging missing for: ' ||
           trim(both ', ' from
-            case when not ls.read_enabled then 'read, ' else '' end ||
-            case when not ls.write_enabled then 'write, ' else '' end ||
-            case when not ls.delete_enabled then 'delete, ' else '' end
+            case when not coalesce(ls.read_enabled, false) then 'read, ' else '' end ||
+            case when not coalesce(ls.write_enabled, false) then 'write, ' else '' end ||
+            case when not coalesce(ls.delete_enabled, false) then 'delete, ' else '' end
           ) || ' requests.'
       end as reason
       ${replace(local.tag_dimensions_qualifier_sql, "__QUALIFIER__", "sa.")}
@@ -863,9 +863,9 @@ query "storage_account_queue_services_logging_enabled" {
         when ls.read_enabled and ls.write_enabled and ls.delete_enabled then sa.name || ' queue service logging enabled for read, write, delete requests.'
         else sa.name || ' queue service logging missing for: ' ||
           trim(both ', ' from
-            case when not ls.read_enabled then 'read, ' else '' end ||
-            case when not ls.write_enabled then 'write, ' else '' end ||
-            case when not ls.delete_enabled then 'delete, ' else '' end
+            case when not coalesce(ls.read_enabled, false) then 'read, ' else '' end ||
+            case when not coalesce(ls.write_enabled, false) then 'write, ' else '' end ||
+            case when not coalesce(ls.delete_enabled, false) then 'delete, ' else '' end
           ) || ' requests.'
       end as reason
       ${replace(local.tag_dimensions_qualifier_sql, "__QUALIFIER__", "sa.")}
