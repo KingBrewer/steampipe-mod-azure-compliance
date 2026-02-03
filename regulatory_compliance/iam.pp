@@ -909,7 +909,7 @@ query "iam_user_access_administrator_role_restricted" {
     from
       azure_role_assignment ra
       left join user_access_admin_role r on ra.role_definition_id = r.id
-      left join azure_subscription sub on sub.subscription_id = ra.subscription_id
+      right join azure_subscription sub on sub.subscription_id = ra.subscription_id
     where
       r.role_name is not null;
   EOQ
@@ -963,4 +963,3 @@ query "iam_subscription_tenant_transfer_restricted" {
       azure_tenant as t;
   EOQ
 }
-
