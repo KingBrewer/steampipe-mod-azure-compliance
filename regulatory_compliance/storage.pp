@@ -971,6 +971,7 @@ query "storage_account_blob_versioning_enabled" {
       azure_storage_account as sa
       left join azure_storage_blob_service as bs on sa.name = bs.storage_account_name
       left join azure_subscription sub on sub.subscription_id = sa.subscription_id
+    where sa.kind not in ('FileStorage');
   EOQ
 }
 
@@ -1027,7 +1028,8 @@ query "storage_account_blob_soft_delete_enabled" {
       ${replace(local.common_dimensions_qualifier_subscription_sql, "__QUALIFIER__", "sub.")}
     from
       azure_storage_account as sa
-      left join azure_subscription sub on sub.subscription_id = sa.subscription_id;
+      left join azure_subscription sub on sub.subscription_id = sa.subscription_id
+    where sa.kind not in ('FileStorage');
   EOQ
 }
 
@@ -1398,6 +1400,7 @@ query "storage_account_container_soft_delete_enabled" {
       ${replace(local.common_dimensions_qualifier_subscription_sql, "__QUALIFIER__", "sub.")}
     from
       azure_storage_account sa
-      left join azure_subscription sub on sub.subscription_id = sa.subscription_id;
+      left join azure_subscription sub on sub.subscription_id = sa.subscription_id
+    where sa.kind not in ('FileStorage');
   EOQ
 }
