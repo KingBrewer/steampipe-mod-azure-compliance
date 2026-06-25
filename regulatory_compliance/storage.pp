@@ -1331,14 +1331,19 @@ query "storage_account_blob_and_container_soft_delete_enabled" {
 
 query "storage_account_file_share_smb_protocol_version_3_1_1" {
   sql = <<-EOQ
+    -- Azure historically returned 'versions' as a ';'-delimited list with a
+    -- trailing ';' (e.g. 'SMB3.1.1;'). Newer API responses may omit the
+    -- trailing delimiter for single-value lists (e.g. 'SMB3.1.1'). Strip any
+    -- trailing ';' before comparing so both shapes are handled, while still
+    -- rejecting multi-value lists such as 'SMB2.1;SMB3.1.1'.
     select
       sa.id as resource,
       case
-        when f -> 'properties' -> 'protocolSettings' -> 'smb' ->> 'versions' = 'SMB3.1.1;' then 'ok'
+        when rtrim(f -> 'properties' -> 'protocolSettings' -> 'smb' ->> 'versions', ';') = 'SMB3.1.1' then 'ok'
         else 'alarm'
       end as status,
       case
-        when f -> 'properties' -> 'protocolSettings' -> 'smb' ->> 'versions' = 'SMB3.1.1;' then sa.name || ' file share SMB protocol version set to SMB 3.1.1.'
+        when rtrim(f -> 'properties' -> 'protocolSettings' -> 'smb' ->> 'versions', ';') = 'SMB3.1.1' then sa.name || ' file share SMB protocol version set to SMB 3.1.1.'
         else sa.name || ' file share SMB protocol version not set to SMB 3.1.1.'
       end as reason
       ${replace(local.tag_dimensions_qualifier_sql, "__QUALIFIER__", "sa.")}
@@ -1353,14 +1358,19 @@ query "storage_account_file_share_smb_protocol_version_3_1_1" {
 
 query "storage_account_file_share_smb_channel_encryption_aes_256_gcm" {
   sql = <<-EOQ
+    -- Azure historically returned 'channelEncryption' as a ';'-delimited list
+    -- with a trailing ';' (e.g. 'AES-256-GCM;'). Newer API responses may omit
+    -- the trailing delimiter for single-value lists (e.g. 'AES-256-GCM').
+    -- Strip any trailing ';' before comparing so both shapes are handled,
+    -- while still rejecting multi-value lists such as 'AES-128-GCM;AES-256-GCM'.
     select
       sa.id as resource,
       case
-        when f -> 'properties' -> 'protocolSettings' -> 'smb' ->> 'channelEncryption' = 'AES-256-GCM;' then 'ok'
+        when rtrim(f -> 'properties' -> 'protocolSettings' -> 'smb' ->> 'channelEncryption', ';') = 'AES-256-GCM' then 'ok'
         else 'alarm'
       end as status,
       case
-        when f -> 'properties' -> 'protocolSettings' -> 'smb' ->> 'channelEncryption' = 'AES-256-GCM;' then sa.name || ' file share SMB channel encryption set to AES-256-GCM.'
+        when rtrim(f -> 'properties' -> 'protocolSettings' -> 'smb' ->> 'channelEncryption', ';') = 'AES-256-GCM' then sa.name || ' file share SMB channel encryption set to AES-256-GCM.'
         else sa.name || ' file share SMB channel encryption not set to AES-256-GCM.'
       end as reason
       ${replace(local.tag_dimensions_qualifier_sql, "__QUALIFIER__", "sa.")}
