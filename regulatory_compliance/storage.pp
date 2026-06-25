@@ -1344,7 +1344,7 @@ query "storage_account_file_share_smb_protocol_version_3_1_1" {
       end as status,
       case
         when rtrim(f -> 'properties' -> 'protocolSettings' -> 'smb' ->> 'versions', ';') = 'SMB3.1.1' then sa.name || ' file share SMB protocol version set to SMB 3.1.1.'
-        else sa.name || ' file share SMB protocol version not set to SMB 3.1.1.'
+        else sa.name || ' file share SMB protocol version not set to SMB 3.1.1 (configured: ''' || coalesce(f -> 'properties' -> 'protocolSettings' -> 'smb' ->> 'versions', '<unset>') || ''').'
       end as reason
       ${replace(local.tag_dimensions_qualifier_sql, "__QUALIFIER__", "sa.")}
       ${replace(local.common_dimensions_qualifier_sql, "__QUALIFIER__", "sa.")}
@@ -1371,7 +1371,7 @@ query "storage_account_file_share_smb_channel_encryption_aes_256_gcm" {
       end as status,
       case
         when rtrim(f -> 'properties' -> 'protocolSettings' -> 'smb' ->> 'channelEncryption', ';') = 'AES-256-GCM' then sa.name || ' file share SMB channel encryption set to AES-256-GCM.'
-        else sa.name || ' file share SMB channel encryption not set to AES-256-GCM.'
+        else sa.name || ' file share SMB channel encryption not set to AES-256-GCM (configured: ''' || coalesce(f -> 'properties' -> 'protocolSettings' -> 'smb' ->> 'channelEncryption', '<unset>') || ''').'
       end as reason
       ${replace(local.tag_dimensions_qualifier_sql, "__QUALIFIER__", "sa.")}
       ${replace(local.common_dimensions_qualifier_sql, "__QUALIFIER__", "sa.")}
