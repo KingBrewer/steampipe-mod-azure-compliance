@@ -740,6 +740,11 @@ query "monitor_log_alert_create_update_security_solution" {
           )
           or
           (
+            alert.condition -> 'allOf' @> '[{"equals":"Administrative","field":"category"}]'
+            and alert.condition -> 'allOf' @> '[{"field": "operationName", "equals": "Microsoft.Security/securitySolutions/write"}]'
+          )
+          or
+          (
             alert.condition -> 'allOf' @> '[{"equals":"Security","field":"category"}]'
             and alert.condition -> 'allOf' @> '[{"field": "operationName", "equals": "Microsoft.Security/securitySolutions/write"}]'
           )
@@ -1046,6 +1051,11 @@ query "monitor_log_alert_delete_security_solution" {
           (
             alert.condition -> 'allOf' @> '[{"equals":"Administrative","field":"category"}]'
             and alert.condition -> 'allOf' @> '[{"field": "operationName", "equals": "Microsoft.Security/locations/securitySolutions/delete"}]'
+          )
+          or
+          (
+            alert.condition -> 'allOf' @> '[{"equals":"Administrative","field":"category"}]'
+            and alert.condition -> 'allOf' @> '[{"field": "operationName", "equals": "Microsoft.Security/securitySolutions/delete"}]'
           )
           or
           (
