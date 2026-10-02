@@ -1880,7 +1880,21 @@ query "appservice_function_app_restrict_public_acces" {
 
 query "appservice_web_app_diagnostic_log_category_http_log_enabled" {
   sql = <<-EOQ
-    with diagnostic_settings_http_logs as (
+    with logic_app as (
+      select
+        id
+      from
+        azure_app_service_web_app
+      where
+        exists (
+          select
+          from
+            unnest(regexp_split_to_array(lower(kind), ',')) elem
+          where
+            btrim(elem) = 'workflowapp'
+        )
+    ),
+    diagnostic_settings_http_logs as (
       select
         distinct id
       from
@@ -1890,15 +1904,17 @@ query "appservice_web_app_diagnostic_log_category_http_log_enabled" {
       where
         log ->> 'category' = 'AppServiceHTTPLogs'
         and (log -> 'enabled')::bool
-
     )
     select
       a.id as resource,
       case
+        -- Logic App Standard is a Microsoft.Web/sites resource (kind token workflowapp) and does not expose AppServiceHTTPLogs.
+        when l.id is not null then 'skip'
         when ds.id is not null then 'ok'
         else 'alarm'
       end as status,
       case
+        when l.id is not null then a.name || ' is a Logic App Standard and does not support the AppServiceHTTPLogs category.'
         when ds.id is not null then a.name || ' HTTP logs for diagnostic log category enabled.'
         else a.name || ' HTTP logs for diagnostic log category disabled.'
       end as reason
@@ -1907,7 +1923,8 @@ query "appservice_web_app_diagnostic_log_category_http_log_enabled" {
       ${replace(local.common_dimensions_qualifier_subscription_sql, "__QUALIFIER__", "sub.")}
     from
       azure_app_service_web_app as a
+      left join logic_app as l on l.id = a.id
       left join diagnostic_settings_http_logs as ds on ds.id = a.id
-      left join  azure_subscription as sub on sub.subscription_id = a.subscription_id;
+      left join azure_subscription as sub on sub.subscription_id = a.subscription_id;
   EOQ
 }
