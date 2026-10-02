@@ -671,14 +671,40 @@ query "network_security_group_diagnostic_setting_deployed" {
 
 query "application_gateway_waf_enabled" {
   sql = <<-EOQ
+    with waf_enabled_gateway as (
+      select
+        ag.id
+      from
+        azure_application_gateway as ag
+      where
+        -- Legacy inline WAF configuration (WAF / WAF v1).
+        web_application_firewall_configuration is not null
+        -- WAF v2 associates a firewall policy at the gateway, listener, or path-rule scope.
+        or nullif(firewall_policy ->> 'id', '') is not null
+        or exists (
+          select
+          from
+            jsonb_array_elements(coalesce(http_listeners, '[]'::jsonb)) as listener
+          where
+            nullif(listener -> 'properties' -> 'firewallPolicy' ->> 'id', '') is not null
+        )
+        or exists (
+          select
+          from
+            jsonb_array_elements(coalesce(url_path_maps, '[]'::jsonb)) as path_map,
+            jsonb_array_elements(coalesce(path_map -> 'properties' -> 'pathRules', '[]'::jsonb)) as path_rule
+          where
+            nullif(path_rule -> 'properties' -> 'firewallPolicy' ->> 'id', '') is not null
+        )
+    )
     select
       ag.id resource,
       case
-        when web_application_firewall_configuration is not null then 'ok'
+        when w.id is not null then 'ok'
         else 'alarm'
       end as status,
       case
-        when web_application_firewall_configuration is not null then ag.name || ' WAF enabled.'
+        when w.id is not null then ag.name || ' WAF enabled.'
         else ag.name || ' WAF disabled.'
       end as reason
       ${replace(local.tag_dimensions_qualifier_sql, "__QUALIFIER__", "ag.")}
@@ -686,6 +712,7 @@ query "application_gateway_waf_enabled" {
       ${replace(local.common_dimensions_qualifier_subscription_sql, "__QUALIFIER__", "sub.")}
     from
       azure_application_gateway as ag
+      left join waf_enabled_gateway as w on w.id = ag.id
       left join azure_subscription as sub on sub.subscription_id = ag.subscription_id;
   EOQ
 }
@@ -2375,12 +2402,30 @@ query "application_gateway_min_tls_1_2" {
     select
       ag.id as resource,
       case
-        when ssl_policy is null or ((ssl_policy ->> 'minProtocolVersion') in ('TLSv1_2' , 'TLSv1_3')) then 'ok'
+        -- No explicit policy uses the platform default, which CIS documents as TLSv1_2.
+        when ssl_policy is null then 'ok'
+        -- Custom and CustomV2 policies return minProtocolVersion. A lower value fails even if a policy name is also set.
+        when (ssl_policy ->> 'minProtocolVersion') in ('TLSv1_2', 'TLSv1_3') then 'ok'
+        when (ssl_policy ->> 'minProtocolVersion') in ('TLSv1_0', 'TLSv1_1') then 'alarm'
+        -- Predefined policies often omit minProtocolVersion and only return policyName.
+        -- AppGwSslPolicy20170401S is the earliest predefined policy with minimum TLS 1.2;
+        -- weaker names (20150501, 20170401) sort before it, and later dated names sort after it.
+        when (ssl_policy ->> 'policyName') >= 'AppGwSslPolicy20170401S' then 'ok'
+        -- Legacy policies express the minimum version as disabled protocols.
+        when (ssl_policy -> 'disabledSslProtocols') @> '["TLSv1_0"]'::jsonb
+          and (ssl_policy -> 'disabledSslProtocols') @> '["TLSv1_1"]'::jsonb
+          and not coalesce((ssl_policy -> 'disabledSslProtocols') @> '["TLSv1_2"]'::jsonb, false) then 'ok'
         else 'alarm'
       end as status,
       case
         when ssl_policy is null then ag.name || ' minimum TLS version set to TLSv1_2.'
-        else ag.name || ' minimum TLS version set to ' || (ssl_policy ->> 'minProtocolVersion') || '.'
+        when coalesce(ssl_policy ->> 'minProtocolVersion', '') <> '' then ag.name || ' minimum TLS version set to ' || (ssl_policy ->> 'minProtocolVersion') || '.'
+        when coalesce(ssl_policy ->> 'policyName', '') <> '' and (ssl_policy ->> 'policyName') >= 'AppGwSslPolicy20170401S' then ag.name || ' SSL policy ' || (ssl_policy ->> 'policyName') || ' enforces TLSv1_2 or higher.'
+        when coalesce(ssl_policy ->> 'policyName', '') <> '' then ag.name || ' SSL policy ' || (ssl_policy ->> 'policyName') || ' minimum TLS version is below TLSv1_2.'
+        when (ssl_policy -> 'disabledSslProtocols') @> '["TLSv1_0"]'::jsonb
+          and (ssl_policy -> 'disabledSslProtocols') @> '["TLSv1_1"]'::jsonb
+          and not coalesce((ssl_policy -> 'disabledSslProtocols') @> '["TLSv1_2"]'::jsonb, false) then ag.name || ' minimum TLS version set to TLSv1_2.'
+        else ag.name || ' minimum TLS version is below TLSv1_2.'
       end as reason
       ${replace(local.tag_dimensions_qualifier_sql, "__QUALIFIER__", "ag.")}
       ${replace(local.common_dimensions_qualifier_sql, "__QUALIFIER__", "ag.")}
