@@ -1880,7 +1880,22 @@ query "appservice_function_app_restrict_public_acces" {
 
 query "appservice_web_app_diagnostic_log_category_http_log_enabled" {
   sql = <<-EOQ
-    with diagnostic_settings_http_logs as (
+    with function_based_app as (
+      select
+        id
+      from
+        azure_app_service_web_app
+      where
+        exists (
+          select
+          from
+            unnest(regexp_split_to_array(lower(kind), ',')) elem
+          where
+            btrim(elem) like 'functionapp%'
+            or btrim(elem) = 'workflowapp'
+        )
+    ),
+    diagnostic_settings_http_logs as (
       select
         distinct id
       from
@@ -1890,15 +1905,17 @@ query "appservice_web_app_diagnostic_log_category_http_log_enabled" {
       where
         log ->> 'category' = 'AppServiceHTTPLogs'
         and (log -> 'enabled')::bool
-
     )
     select
       a.id as resource,
       case
+        -- Function apps and Logic App Standard do not offer the AppServiceHTTPLogs diagnostic category.
+        when f.id is not null then 'skip'
         when ds.id is not null then 'ok'
         else 'alarm'
       end as status,
       case
+        when f.id is not null then a.title || ' is ' || a.kind || ' kind and does not support the AppServiceHTTPLogs category.'
         when ds.id is not null then a.name || ' HTTP logs for diagnostic log category enabled.'
         else a.name || ' HTTP logs for diagnostic log category disabled.'
       end as reason
@@ -1907,7 +1924,8 @@ query "appservice_web_app_diagnostic_log_category_http_log_enabled" {
       ${replace(local.common_dimensions_qualifier_subscription_sql, "__QUALIFIER__", "sub.")}
     from
       azure_app_service_web_app as a
+      left join function_based_app as f on f.id = a.id
       left join diagnostic_settings_http_logs as ds on ds.id = a.id
-      left join  azure_subscription as sub on sub.subscription_id = a.subscription_id;
+      left join azure_subscription as sub on sub.subscription_id = a.subscription_id;
   EOQ
 }
